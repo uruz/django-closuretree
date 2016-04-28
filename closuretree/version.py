@@ -1,2 +1,1 @@
-from gitversion import rewritable_git_version
-__VERSION__ = rewritable_git_version(__file__)
+__VERSION__ = '1.1.8-yandex1'

@@ -167,11 +167,11 @@ class AncestorTestCase(TestCase):
         )
         self.failUnlessEqual(
             list(self.c.get_ancestors(include_self=True)),
-            [self.c, self.b, self.a]
+            [self.a, self.b, self.c]
         )
         self.failUnlessEqual(
             list(self.c.get_ancestors(include_self=True, depth=1)),
-            [self.c, self.b]
+            [self.b, self.c]
         )
 
     def test_descendants(self):

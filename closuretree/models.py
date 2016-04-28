@@ -212,7 +212,7 @@ class ClosureModel(with_metaclass(ClosureModelBase, models.Model)):
         ancestors = self._toplevel().objects.filter(**params)
         if not include_self:
             ancestors = ancestors.exclude(pk=self.pk)
-        return ancestors.order_by("%s__depth" % self._closure_parentref())
+        return ancestors.order_by("level")
 
     def get_descendants(self, include_self=False, depth=None):
         """Return all the descendants of this object."""

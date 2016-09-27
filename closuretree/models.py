@@ -31,7 +31,9 @@ from django.db.models.base import ModelBase
 from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 from django.utils.six import with_metaclass
+from . import managers
 import sys
+
 
 def _closure_model_unicode(self):
     """__unicode__ implementation for the dynamically created
@@ -88,6 +90,8 @@ class ClosureModel(with_metaclass(ClosureModelBase, models.Model)):
     """Provides methods to assist in a tree based structure."""
     # pylint: disable=W5101
 
+    objects = managers.CttManager()
+
     class Meta:
         """We make this an abstract class, it needs to be inherited from."""
         # pylint: disable=W0232
@@ -138,12 +142,7 @@ class ClosureModel(with_metaclass(ClosureModelBase, models.Model)):
     def rebuildtable(cls):
         """Regenerate the entire closuretree."""
         cls._closure_model.objects.all().delete()
-        cls._closure_model.objects.bulk_create([cls._closure_model(
-            parent_id=x['pk'],
-            child_id=x['pk'],
-            depth=0
-        ) for x in cls.objects.values("pk")])
-        for node in cls.objects.all():
+        for node in cls.objects.order_by('level'):
             node._closure_createlink()
 
     @classmethod
@@ -195,19 +194,7 @@ class ClosureModel(with_metaclass(ClosureModelBase, models.Model)):
         ).delete()
 
     def _closure_createlink(self):
-        """Create a link in the closure tree."""
-        linkparents = self._closure_model.objects.filter(
-            child__pk=self._closure_parent_pk
-        ).values("parent", "depth")
-        linkchildren = self._closure_model.objects.filter(
-            parent__pk=self.pk
-        ).values("child", "depth")
-        newlinks = [self._closure_model(
-            parent_id=p['parent'],
-            child_id=c['child'],
-            depth=p['depth']+c['depth']+1
-        ) for p in linkparents for c in linkchildren]
-        self._closure_model.objects.bulk_create(newlinks)
+        self._default_manager.closure_createlink(self.pk, self._closure_parent_pk)
 
     def get_ancestors(self, include_self=False, depth=None):
         """Return all the ancestors of this object."""
@@ -311,13 +298,6 @@ def closure_model_save(sender, **kwargs):
     if issubclass(sender, ClosureModel):
         instance = kwargs['instance']
         create = kwargs['created']
-        if create:
-            closure_instance = instance._closure_model(
-                parent=instance,
-                child=instance,
-                depth=0
-            )
-            closure_instance.save()
         if instance._closure_change_check():
             #Changed parents.
             if instance._closure_change_oldparent():

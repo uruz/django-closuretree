@@ -186,14 +186,11 @@ class ClosureModel(with_metaclass(ClosureModelBase, models.Model)):
             parent = getattr(self, self._closure_parent_attr)
             return parent.pk if parent else None
 
-    def _closure_deletelink(self, oldparentpk):
+    def _closure_deletelink(self):
         """Remove incorrect links from the closure tree."""
-        self._closure_model.objects.filter(
-            **{
-                "parent__%s__child" % self._closure_parentref(): oldparentpk,
-                "child__%s__parent" % self._closure_childref(): self.pk
-            }
-        ).delete()
+        qs = self._closure_model.objects.filter(child_id=self.pk)
+        qs.delete()
+
     @property
     def _closure_parent(self):
         result = None
@@ -330,4 +327,4 @@ def closure_model_save(sender, **kwargs):
 def closure_model_delete(sender, **kwargs):
     if issubclass(sender, ClosureModel):
         instance = kwargs['instance']
-        instance._closure_deletelink(instance._closure_parent_pk)
+        instance._closure_deletelink()

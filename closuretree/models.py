@@ -28,7 +28,7 @@
 
 from django.db import models
 from django.db.models.base import ModelBase
-from django.db.models.signals import post_save, pre_delete
+from django.db.models.signals import pre_save, post_save, pre_delete
 from django.dispatch import receiver
 from django.utils.six import with_metaclass
 from . import managers
@@ -90,6 +90,7 @@ class ClosureModel(with_metaclass(ClosureModelBase, models.Model)):
     """Provides methods to assist in a tree based structure."""
     # pylint: disable=W5101
 
+    level = models.PositiveIntegerField(editable=False, db_index=True, default=0)
     objects = managers.CttManager()
 
     class Meta:
@@ -291,6 +292,17 @@ class ClosureModel(with_metaclass(ClosureModelBase, models.Model)):
     def _closure_change_oldparent(self):
         """Part of the change detection. What we used to be"""
         return self._closure_old_parent_pk
+
+
+@receiver(pre_save, dispatch_uid='closure-model-presave')
+def closure_model_set_level(sender, **kwargs):
+    if issubclass(sender, ClosureModel):
+        instance = kwargs['instance']
+        if instance._closure_parent_pk:
+            parent = getattr(instance, instance._closure_parent_attr)
+            instance.level = parent.level + 1
+        else:
+            instance.level = 0
 
 
 @receiver(post_save, dispatch_uid='closure-model-save')

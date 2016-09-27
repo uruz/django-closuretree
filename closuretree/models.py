@@ -26,6 +26,7 @@
 # Public methods are useful!
 # pylint: disable=R0904
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models.base import ModelBase
 from django.db.models.signals import pre_save, post_save, pre_delete
@@ -193,6 +194,14 @@ class ClosureModel(with_metaclass(ClosureModelBase, models.Model)):
                 "child__%s__parent" % self._closure_childref(): self.pk
             }
         ).delete()
+    @property
+    def _closure_parent(self):
+        result = None
+        try:
+            result = getattr(self, self._closure_parent_attr)
+        except ObjectDoesNotExist:
+            pass
+        return result
 
     def _closure_createlink(self):
         self._default_manager.closure_createlink(self.pk, self._closure_parent_pk)
@@ -283,15 +292,11 @@ class ClosureModel(with_metaclass(ClosureModelBase, models.Model)):
         """Part of the change detection. Setting up"""
         # More magic. We're setting this inside setattr...
         # pylint: disable=W0201
-        self._closure_old_parent_pk = self._closure_parent_pk
+        self._closure_old_parent = self._closure_parent
 
     def _closure_change_check(self):
         """Part of the change detection. Have we changed since we began?"""
-        return hasattr(self,"_closure_old_parent_pk")
-
-    def _closure_change_oldparent(self):
-        """Part of the change detection. What we used to be"""
-        return self._closure_old_parent_pk
+        return hasattr(self,"_closure_old_parent")
 
 
 @receiver(pre_save, dispatch_uid='closure-model-presave')
@@ -311,11 +316,11 @@ def closure_model_save(sender, **kwargs):
         instance = kwargs['instance']
         create = kwargs['created']
         if instance._closure_change_check():
-            #Changed parents.
-            if instance._closure_change_oldparent():
-                instance._closure_deletelink(instance._closure_change_oldparent())
-            instance._closure_createlink()
-            delattr(instance, "_closure_old_parent_pk")
+            # Changed parents
+            instance._default_manager.closure_update_links(
+                instance, instance._closure_parent, instance._closure_old_parent
+            )
+            delattr(instance, "_closure_old_parent")
         elif create:
             # We still need to create links when we're first made
             instance._closure_createlink()

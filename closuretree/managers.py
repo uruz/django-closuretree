@@ -1,4 +1,6 @@
+import uuid
 from django.db import connection, models
+from django.db.models import F
 
 
 class CttManager(models.Manager):
@@ -20,6 +22,8 @@ class CttManager(models.Manager):
                         "FROM {table} WHERE child_id = %s")
             selects.append(template.format(table=closure_table))
             query_args.extend([pk, parent_id])
+        if isinstance(pk, uuid.UUID):
+            query_args = map(unicode, query_args)
 
         insert_template = (
             "{insert} INTO {closure_table} (depth, child_id, parent_id) "
@@ -37,3 +41,16 @@ class CttManager(models.Manager):
         )
         with connection.cursor() as cursor:
             cursor.execute(query_sql, query_args)
+
+    def closure_update_links(self, instance, new_parent, old_parent):
+        subtree_with_self = instance.get_descendants(include_self=True)
+        subtree_without_self = instance.get_descendants().order_by('level')
+        cached_subtree = [instance] + list(subtree_without_self)
+        new_level = new_parent.level if new_parent is not None else 0
+        old_level = old_parent.level if old_parent is not None else 0
+        leveldiff = new_level - old_level
+        subtree_without_self.update(level=F('level') + leveldiff)
+        links = self.model._closure_model.objects.filter(child_id__in=subtree_with_self)
+        links.delete()
+        for item in cached_subtree:
+            self.closure_createlink(item.pk, item._closure_parent_pk)

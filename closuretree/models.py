@@ -42,15 +42,19 @@ def _closure_model_unicode(self):
 def create_closure_model(cls):
     """Creates a <Model>Closure model in the same module as the model."""
     meta_vals = {
-        'unique_together':  (("parent", "child"),)
+        'unique_together':  (("parent", "child"),),
+        'app_label': cls._meta.app_label,
     }
     if getattr(cls._meta, 'db_table', None):
         meta_vals['db_table'] = '%sclosure' % getattr(cls._meta, 'db_table')
-    model = type('%sClosure' % cls.__name__, (models.Model,), {
-        'parent': models.ForeignKey(
-            cls.__name__,
-            related_name=cls.closure_parentref()
-        ),
+
+    closure_cls_name = '%sClosure' % cls.__name__
+    parent_field = models.ForeignKey(
+        cls.__name__,
+        related_name=cls.closure_parentref()
+    )
+    model = type(closure_cls_name, (models.Model,), {
+        'parent': parent_field,
         'child': models.ForeignKey(
             cls.__name__,
             related_name=cls.closure_childref()

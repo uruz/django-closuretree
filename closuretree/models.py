@@ -112,7 +112,7 @@ class ClosureModel(with_metaclass(ClosureModelBase, models.Model)):
                 (not hasattr(self, 'get_deferred_fields') and hasattr(self, id_field_name))  # Django<1.8
             ) and
             not self._closure_change_check()  # The old value isn't stored
-        ):
+        )   :
             if name.endswith('_id'):
                 obj_id = value
             elif value:

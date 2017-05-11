@@ -26,16 +26,23 @@ class CttManager(models.Manager):
             query_args = map(unicode, query_args)
 
         insert_template = (
-            "{insert} INTO {closure_table} (depth, child_id, parent_id) "
-            "{selects_union}")
+            "{insert_operator} INTO {closure_table} (depth, child_id, parent_id) {selects_union} {on_conflict}"
+        )
+        on_conflict_clause = ''
 
         if connection.vendor == 'sqlite':
             insert_operator = 'INSERT OR IGNORE'
-        else:
+        elif connection.vendor == 'mysql':
             insert_operator = 'INSERT IGNORE'
+        elif connection.vendor == 'postgresql':
+            insert_operator = 'INSERT'
+            on_conflict_clause = 'ON CONFLICT DO NOTHING'
+        else:
+            insert_operator = 'INSERT'
 
         query_sql = insert_template.format(
-            insert=insert_operator,
+            insert_operator=insert_operator,
+            on_conflict=on_conflict_clause,
             closure_table=closure_table,
             selects_union=' UNION '.join(selects),
         )

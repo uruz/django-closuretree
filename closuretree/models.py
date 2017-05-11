@@ -107,7 +107,7 @@ class ClosureModel(with_metaclass(ClosureModelBase, models.Model)):
             id_field_name = "%s_id" % name
         if (
             name.startswith(self._closure_sentinel_attr) and  # It's the right attribute
-            hasattr(self, id_field_name) and  # It's already been set
+            getattr(self, id_field_name, None) is not None and  # It's already been set
             not self._closure_change_check()  # The old value isn't stored
         ):
             if name.endswith('_id'):

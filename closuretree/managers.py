@@ -56,7 +56,8 @@ class CttManager(models.Manager):
         new_level = new_parent.level if new_parent is not None else 0
         old_level = old_parent.level if old_parent is not None else 0
         leveldiff = new_level - old_level
-        subtree_without_self.update(level=F('level') + leveldiff)
+        if leveldiff != 0:
+            subtree_without_self.update(level=F('level') + leveldiff)
         links = self.model._closure_model.objects.filter(child_id__in=subtree_with_self)
         links.delete()
         for item in cached_subtree:

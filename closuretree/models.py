@@ -54,13 +54,15 @@ def create_closure_model(cls):
     closure_cls_name = '%sClosure' % cls.__name__
     parent_field = models.ForeignKey(
         cls.__name__,
-        related_name=cls.closure_parentref()
+        related_name=cls.closure_parentref(),
+        on_delete=models.CASCADE,
     )
     model = type(closure_cls_name, (models.Model,), {
         'parent': parent_field,
         'child': models.ForeignKey(
             cls.__name__,
-            related_name=cls.closure_childref()
+            related_name=cls.closure_childref(),
+            on_delete=models.CASCADE,
         ),
         'depth': models.IntegerField(),
         '__module__':   cls.__module__,
@@ -201,7 +203,7 @@ class ClosureModel(with_metaclass(ClosureModelBase, models.Model)):
         return result
 
     def _closure_createlink(self):
-        self._default_manager.closure_createlink(self.pk, self._closure_parent_pk)
+        self.__class__._default_manager.closure_createlink(self.pk, self._closure_parent_pk)
 
     def get_ancestors(self, include_self=False, depth=None):
         """Return all the ancestors of this object."""
@@ -314,7 +316,7 @@ def closure_model_save(sender, **kwargs):
         create = kwargs['created']
         if instance._closure_change_check():
             # Changed parents
-            instance._default_manager.closure_update_links(
+            instance.__class__._default_manager.closure_update_links(
                 instance, instance._closure_parent, instance._closure_old_parent
             )
             delattr(instance, "_closure_old_parent")
